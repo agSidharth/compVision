@@ -142,7 +142,7 @@ if __name__=="__main__":
 	gmm = GMM(data_dir,0.10)
 
 	print("1:Training started")
-	#gmm.train()
+	gmm.train()
 	print("2:Training finished")
 
 	index = 0
@@ -152,7 +152,7 @@ if __name__=="__main__":
 	for file in inputList:
 		img = cv.imread(os.path.join(data_dir,file))
 		newImg = gmm.infer(img)
-		cv.imwrite(os.path.join(out_dir,file+".png"),newImg)
+		cv.imwrite(os.path.join(out_dir,str(index)+".png"),newImg)
 		index += 1
 
 

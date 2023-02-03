@@ -8,7 +8,7 @@ class GMM():
 	def toGray(self,img):
 		return cv.cvtColor(img,cv.COLOR_BGR2GRAY)
 
-	def __init__(self,data_dir,alpha,N = 10,K = 4):
+	def __init__(self,data_dir,alpha,N,K):
 
 		self.data_dir = data_dir
 		self.alpha = alpha
@@ -32,15 +32,16 @@ class GMM():
 
 		for k in range(self.K):
 			self.mu[:,:,k] = self.first_img[:,:]
-
-		#self.history = []
 	
+	def normal_dis(self,x,mean,sigma):
+		result = (1/(np.sqrt(2*np.pi)*sigma))*np.exp((-1/2)*np.square((x-mean)/sigma))
+		return result
+
 	def trainImg(self,img):
 		
 		result = np.zeros(img.shape)
 
 		#gaussian has matched with these indexes and indG
-		# SID: !!
 		img = img[:,:,np.newaxis]
 		indX,indY,indG = np.where(abs(img-self.mu)/self.sigma <= 2.5)
 
@@ -49,12 +50,12 @@ class GMM():
 		noX,noY = np.where(minDis>2.5)
 		minGauss = np.argmin(self.weights,axis = 2)
 
+		# SID :: ?? sorting and summation skipped.
 		result[noX,noY] = img[noX,noY,0]
 
 		self.weights = (1-self.alpha)*self.weights
 
-		# SID: ??
-		rho = 0.0001
+		rho = self.alpha*self.normal_dis(img[indX,indY,0],self.mu[indX,indY,indG],self.sigma[indX,indY,indG])
 		self.weights[indX,indY,indG] += (self.alpha)*self.weights[indX,indY,indG]
 		self.mu[indX,indY,indG] = (1-rho)*self.mu[indX,indY,indG] + rho*img[indX,indY,0]
 
@@ -77,12 +78,14 @@ class GMM():
 
 
 if __name__=="__main__":
+	alpha = 0.01
+	ourN = 10
 	ourK = 4
 	init_weight = [1/ourK]*ourK
-	init_sigma_factor = 20
+	init_sigma_factor = 5
 
 	data_dir = os.path.join(sys.argv[1],"input")
-	gmm = GMM(data_dir,0.10,N = 10,K = ourK)
+	gmm = GMM(data_dir,alpha,N = ourN,K = ourK)
 	output_dir = sys.argv[2]
 
 	print("1:Training started")

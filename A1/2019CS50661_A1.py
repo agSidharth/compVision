@@ -109,12 +109,12 @@ class GMM():
 				c += stride
 			r += stride
 
-		#"""
+		"""
 		cv.imshow("img",img)
 		cv.waitKey(0)
 		cv.imshow("result",result)
 		cv.waitKey(0)
-		#"""
+		"""
 
 		return result
 

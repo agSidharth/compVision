@@ -137,7 +137,7 @@ if __name__=="__main__":
 	ourK = 4
 	init_weight = [1/ourK]*ourK
 	init_sigma_factor = 10
-	filter = {'thresh' : 255*30,'width': 20, 'length': 20, 'stride': 20}
+	filter = {'thresh' : 255*10,'width': 20, 'length': 20, 'stride': 20}
 
 	data_dir = sys.argv[1]
 	output_dir = sys.argv[2]

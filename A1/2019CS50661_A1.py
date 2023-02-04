@@ -51,7 +51,9 @@ class GMM():
 		minGauss = np.argmin(self.weights,axis = 2)
 
 		# SID :: ?? sorting and summation skipped.
-		result[noX,noY] = img[noX,noY,0]
+		# SID :: video part skipped
+		
+		result[noX,noY] = 255
 
 		self.weights = (1-self.alpha)*self.weights
 
@@ -68,11 +70,56 @@ class GMM():
 
 		return result
 	
-	def train(self,output_dir):
+	def return_integral(self,img):
+		rows,cols = img.shape 
+		dp = np.zeros(img.shape)
+
+		prev = 0
+		for c in range(cols):
+			dp[0,c] = img[0,c] + prev
+			prev = dp[0,c]
+		
+		prev = 0
+		for r in range(rows):
+			dp[r,0] = img[r,0] + prev
+			prev = dp[r,0]
+		
+		for r in range(1,rows):
+			for c in range(1,cols):
+				dp[r,c] = dp[r-1,c] + dp[r,c-1] - dp[r-1,c-1]
+		
+		return dp
+	
+	def remove_noise(self,img,thresh,width,height,stride):
+		dp = self.return_integral(img)
+		result = np.copy(img)
+
+		r = 0
+		while(r+width<img.shape[0]):
+			c = 0
+			while(c+height<img.shape[1]):
+				thisSum = dp[r+width,c+height]
+				
+				if(r>0): thisSum -= dp[r-1,c+height]
+				if(c>0): thisSum -= dp[r+height,c-1]
+				if(r>0 and c>0): thisSum += dp[r-1,c-1]
+
+				if(thisSum<thresh):
+					result[r:(r+width+1),c:(c+height+1)] = 0
+				c += stride
+			r += stride
+		
+		return result
+
+	def train(self,output_dir,useFilter = False,filter = None):
 		index = 0
 		for file in self.file_list:
 			img = self.toGray(cv.imread(file))
 			newImg = self.trainImg(img)
+			
+			if(useFilter): 
+				newImg = self.remove_noise(newImg,filter["thresh"],filter["width"],filter["height"],filter["stride"])
+
 			cv.imwrite(os.path.join(output_dir,str(index)+".png"),newImg)
 			index += 1
 
@@ -83,13 +130,19 @@ if __name__=="__main__":
 	ourK = 4
 	init_weight = [1/ourK]*ourK
 	init_sigma_factor = 5
+	filter = {'thresh' : 100,'width': 24, 'height': 24, 'stride': 24}
 
 	data_dir = os.path.join(sys.argv[1],"input")
-	gmm = GMM(data_dir,alpha,N = ourN,K = ourK)
 	output_dir = sys.argv[2]
+	useFilter = (sys.argv[3]=="filter") if len(sys.argv)>3 else False
+
+	gmm = GMM(data_dir,alpha,N = ourN,K = ourK)
+
+	if(useFilter):
+		print("Filter is being used to clean noise")
 
 	print("1:Training started")
-	gmm.train(output_dir)
+	gmm.train(output_dir,useFilter,filter)
 	print("2:Training finished")
 
 

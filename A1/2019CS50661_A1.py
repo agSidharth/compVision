@@ -109,12 +109,12 @@ class GMM():
 				c += stride
 			r += stride
 
-		"""
+		#"""
 		cv.imshow("img",img)
 		cv.waitKey(0)
 		cv.imshow("result",result)
 		cv.waitKey(0)
-		"""
+		#"""
 
 		return result
 
@@ -132,14 +132,14 @@ class GMM():
 
 
 if __name__=="__main__":
-	alpha = 0.01
+	alpha = 0.00001
 	ourN = 10
 	ourK = 4
 	init_weight = [1/ourK]*ourK
-	init_sigma_factor = 5
-	filter = {'thresh' : 255*40,'width': 20, 'length': 20, 'stride': 20}
+	init_sigma_factor = 10
+	filter = {'thresh' : 255*30,'width': 20, 'length': 20, 'stride': 20}
 
-	data_dir = os.path.join(sys.argv[1],"input")
+	data_dir = sys.argv[1]
 	output_dir = sys.argv[2]
 	useFilter = (sys.argv[3]=="filter") if len(sys.argv)>3 else False
 

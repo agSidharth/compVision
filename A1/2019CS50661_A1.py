@@ -8,12 +8,14 @@ class GMM():
 	def toGray(self,img):
 		return cv.cvtColor(img,cv.COLOR_BGR2GRAY)
 
-	def __init__(self,data_dir,alpha,N,K):
+	def __init__(self,data_dir,alpha,N,K,classThresh,distThresh):
 
 		self.data_dir = data_dir
 		self.alpha = alpha
 		self.N = N
 		self.K = K
+		self.classThresh = classThresh
+		self.distThresh = distThresh
 
 		temp_file_list = os.listdir(self.data_dir)
 		temp_file_list.sort()
@@ -43,17 +45,23 @@ class GMM():
 
 		#gaussian has matched with these indexes and indG
 		img = img[:,:,np.newaxis]
-		indX,indY,indG = np.where(abs(img-self.mu)/self.sigma <= 2.5)
+		indX,indY,indG = np.where(abs(img-self.mu)/self.sigma <= self.distThresh)
 
 		# gaussian has not matched with these indexes.
 		minDis = np.min(abs(img-self.mu)/self.sigma,axis = 2)
-		noX,noY = np.where(minDis>2.5)
+		noX,noY = np.where(minDis>self.distThresh)
 		minGauss = np.argmin(self.weights,axis = 2)
-
-		# SID :: ?? sorting and summation skipped.
-		# SID :: video part skipped
 		
-		result[noX,noY] = 255
+		#reordering
+		order = np.argsort((-1)*(self.weights/self.sigma),axis = 2)
+		i,j,k = np.ogrid[:self.img_shape[0],:self.img_shape[1],:self.K]
+		self.weights[i,j,k] = self.weights[i,j,order[i,j,k]]
+		self.mu[i,j,k] = self.mu[i,j,order[i,j,k]]
+		self.sigma[i,j,k] = self.sigma[i,j,order[i,j,k]]
+
+		#classifying the pixel
+		result = ((np.cumsum(self.weights,axis = 2)<=self.classThresh) & ((abs(img-self.mu)/self.sigma) <= self.distThresh))
+		result = ((np.bitwise_or.reduce(result,axis = 2)).astype(np.uint8)^1)*255
 
 		self.weights = (1-self.alpha)*self.weights
 
@@ -132,18 +140,20 @@ class GMM():
 
 
 if __name__=="__main__":
-	alpha = 0.00001
+	alpha = 0.0001
 	ourN = 10
-	ourK = 4
+	ourK = 8
 	init_weight = [1/ourK]*ourK
-	init_sigma_factor = 10
+	init_sigma_factor = 20
+	classThresh = (3/ourK)
+	distThresh = 2.5
 	filter = {'thresh' : 255*10,'width': 20, 'length': 20, 'stride': 20}
 
 	data_dir = sys.argv[1]
 	output_dir = sys.argv[2]
 	useFilter = (sys.argv[3]=="filter") if len(sys.argv)>3 else False
 
-	gmm = GMM(data_dir,alpha,N = ourN,K = ourK)
+	gmm = GMM(data_dir,alpha,N = ourN,K = ourK,classThresh=classThresh,distThresh=distThresh)
 
 	if(useFilter):
 		print("Filter is being used to clean noise")

@@ -6,9 +6,9 @@ import os
 from tqdm import tqdm
 import random
 
-SHOW_CORN = True            # show corners in part 1
-SHOW_PATCH = True           # show randomly selected mtched pair for each pair of images.
-CORN_THRESH = 0.05          # percentage of maximum to set the threshold for corner selection
+SHOW_CORN = False            # show corners in part 1
+SHOW_PATCH = False          # show randomly selected mtched pair for each pair of images.
+CORN_THRESH = 0.20          # percentage of maximum to set the threshold for corner selection
 SSD_THRESH = 2200           # max ssd distance to be considered as a match
 DESC_SIZE = 5               # window size for ssd calculation
 
@@ -81,6 +81,10 @@ if __name__ == "__main__":
         pass
     
     inputs = [os.path.join(sys.argv[1],idx) for idx in inputs]
+    
+    affines = [None]*len(inputs)
+    affines[0] = np.eye(3)
+    matches = []
 
     for kdx in range(0,len(inputs)-1):
         
@@ -96,7 +100,8 @@ if __name__ == "__main__":
         imgShape1 = img1.shape[:2]
         imgShape2 = img2.shape[:2]
 
-        matches = []
+        src = []
+        dst = []
         for idx in tqdm(range(len(corners1))):
             c1 = corners1[idx]
 
@@ -122,30 +127,49 @@ if __name__ == "__main__":
             ssd = np.linalg.norm(d1-d2)
 
             if ssd<SSD_THRESH:
-                matches.append([idx,min_jdx])
+                src.append([corners1[idx][1],corners1[idx][0],1])
+                dst.append([corners2[min_jdx][1],corners2[min_jdx][0],1])
             
-            #if num_matches>0: break 
-
+        matches.append((src,dst))
         if SHOW_PATCH:
-            rand_index = random.randint(0,len(matches)-1)
-            visualize_patch(corners1[matches[rand_index][0]],inputs[kdx])
-            visualize_patch(corners2[matches[rand_index][1]],inputs[kdx+1])
+            rand_index = random.randint(0,len(src)-1)
+            visualize_patch((src[rand_index][1],src[rand_index][0]),inputs[kdx])
+            visualize_patch((dst[rand_index][1],dst[rand_index][0]),inputs[kdx+1])
             cv2.waitKey(0)
             cv2.destroyAllWindows()
         
         print("Number of corners in "+inputs[kdx]+" : "+str(len(corners1)))
         print("Number of corners in "+inputs[kdx+1]+" : "+str(len(corners2)))
-        print("Number of matches found : "+str(len(matches))+"\n")
+        print("Number of matches found : "+str(len(src))+"\n")
 
-        """
-        src_pts = np.float32([ corners1[matches[idx][0]] for idx in range(len(matches)) ]).reshape(-1,1,2)
-        dst_pts = np.float32([ corners2[matches[idx][1]] for idx in range(len(matches)) ]).reshape(-1,1,2)
+        M = np.transpose(np.linalg.lstsq(dst,src,rcond= None)[0])
+        M[2] = np.array([0,0,1])
+        affines[kdx+1] = np.matmul(affines[kdx],M)
+    
+    # change this in the end
+    Corners = []
+    for kdx in range(len(inputs)):
+        H,W,_ = cv2.imread(inputs[kdx]).shape
+        corners = np.array([[0,W-1,W-1,0],[0,0,H-1,H-1],[1,1,1,1]])
+        corners_new_position = np.rint(np.matmul(affines[kdx],corners).T)
 
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-        matchesMask = mask.ravel().tolist()
-        img2_warped = cv2.warpPerspective(img1, M, (imgShape1[1] + imgShape2[1], imgShape2[0]))
+        L = []
+        L.append(min(0,np.int32(np.amin(corners_new_position[:,:1]))))
+        L.append(max(W-1,np.int32(np.amax(corners_new_position[:,:1]))))
+        L.append(min(0,np.int32(np.amin(corners_new_position[:,1:]))))
+        L.append(max(H-1,np.int32(np.amax(corners_new_position[:,1:]))))
+        Corners.append(L)
+    
+    Corners=np.array(Corners).astype(np.int32)
+    w_min = np.amin(Corners[:,0])
+    w_max = np.amax(Corners[:,1])
+    h_min = np.amin(Corners[:,2])
+    h_max = np.amax(Corners[:,3])
+    
+    final_image = np.zeros((h_max-h_min+1,w_max-w_min+1,3))
+    for kdx in range(len(inputs)):
+        wrapped_img = cv2.warpAffine(cv2.imread(inputs[kdx]),affines[kdx][0:2],(final_image.shape[1],final_image.shape[0]))
+        final_image[np.where(final_image==[0,0,0])] = wrapped_img[np.where(final_image==[0,0,0])]
 
-        cv2.imshow("img2_wraped",img2_warped)
-        cv2.waitKey(0)
-        """
-
+    final_image = cv2.convertScaleAbs(final_image)
+    cv2.imwrite("output.png",final_image)

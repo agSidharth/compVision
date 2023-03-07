@@ -1,3 +1,5 @@
+You can set the flags of whether to view corners or randomly matched corners using the variables mentioned on the top
+
 Q1.
 I implemented the hessian corner detector and took the hessian of the gaussian smoothened image using opencv derivative and
 gaussian kernel functions. I later coloured all the corners as yellow in the end.

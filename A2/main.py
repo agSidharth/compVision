@@ -146,7 +146,7 @@ if __name__ == "__main__":
         M[2] = np.array([0,0,1])
         affines[kdx+1] = np.matmul(affines[kdx],M)
     
-    # change this in the end
+    # finding the dimensions of the final image
     Corners = []
     for kdx in range(len(inputs)):
         H,W,_ = cv2.imread(inputs[kdx]).shape
@@ -161,12 +161,8 @@ if __name__ == "__main__":
         Corners.append(L)
     
     Corners=np.array(Corners).astype(np.int32)
-    w_min = np.amin(Corners[:,0])
-    w_max = np.amax(Corners[:,1])
-    h_min = np.amin(Corners[:,2])
-    h_max = np.amax(Corners[:,3])
     
-    final_image = np.zeros((h_max-h_min+1,w_max-w_min+1,3))
+    final_image = np.zeros((np.amax(Corners[:,3])-np.amin(Corners[:,2])+1,np.amax(Corners[:,1])-np.amin(Corners[:,0])+1,3))
     for kdx in range(len(inputs)):
         wrapped_img = cv2.warpAffine(cv2.imread(inputs[kdx]),affines[kdx][0:2],(final_image.shape[1],final_image.shape[0]))
         final_image[np.where(final_image==[0,0,0])] = wrapped_img[np.where(final_image==[0,0,0])]

@@ -6,10 +6,11 @@ import os
 from tqdm import tqdm
 import random
 
-SHOW_CORN = False
-SHOW_PATCH = False
-SSD_THRESH = 2200
-DESC_SIZE = 5
+SHOW_CORN = True            # show corners in part 1
+SHOW_PATCH = True           # show randomly selected mtched pair for each pair of images.
+CORN_THRESH = 0.05          # percentage of maximum to set the threshold for corner selection
+SSD_THRESH = 2200           # max ssd distance to be considered as a match
+DESC_SIZE = 5               # window size for ssd calculation
 
 def checkCorner(corner,imgShape, delta = DESC_SIZE):
     if corner[0]-delta<0 or corner[0]+delta>=imgShape[0]: return False
@@ -31,14 +32,14 @@ def visualize_patch(corner,image_name, delta = 100):
     img_copy = cv2.circle(img_copy,(corner[1],corner[0]),8,[0,255,255],2)
     #img_copy[corner[0],corner[1]] = [0,255,255]
 
-    patch = img_copy[corner[0] - delta : corner[0] + delta, corner[1] - delta : corner[1] + delta]
-    
+    patch = img_copy[corner[0] - delta : corner[0] + delta, corner[1] - delta : corner[1] + delta] 
     cv2.imshow("PATCH_"+image_name+str(corner),cv2.resize(patch,(400,400),cv2.INTER_LINEAR))
 
 def Hessian_Corner_Detector(image_name):
 
     image_input = cv2.imread(image_name)
 
+    # gaussian smoothing
     image_input_gray = cv2.GaussianBlur(cv2.cvtColor(image_input, cv2.COLOR_BGR2GRAY),(9,9),3)
 
     Ix = cv2.Sobel(image_input_gray, cv2.CV_64F, 1, 0, ksize=9) 
@@ -50,8 +51,8 @@ def Hessian_Corner_Detector(image_name):
 
     k = 0.05
     R = np.zeros(image_input_gray.shape)*k + np.multiply(Ix_2,Iy_2)-np.square(IxIy)-k*np.square(Ix_2+Iy_2)
-    
-    dst_thresh = cv2.dilate(cv2.threshold(R,0.05*R.max(),255,cv2.THRESH_BINARY)[1],None)
+
+    dst_thresh = cv2.dilate(cv2.threshold(R,CORN_THRESH*R.max(),255,cv2.THRESH_BINARY)[1],None)
     outImg = image_input.copy()
     #outImg[dst_thresh==255] = [0,255,255]
 
@@ -82,14 +83,18 @@ if __name__ == "__main__":
     inputs = [os.path.join(sys.argv[1],idx) for idx in inputs]
 
     for kdx in range(0,len(inputs)-1):
+        
+        img1 = cv2.imread(inputs[kdx])
+        img2 = cv2.imread(inputs[kdx+1])
+
         corners1 = Hessian_Corner_Detector(inputs[kdx])
         corners2 = Hessian_Corner_Detector(inputs[kdx+1])
 
         desc1 = get_descriptors(corners1,inputs[kdx])
         desc2 = get_descriptors(corners2,inputs[kdx+1])
 
-        imgShape1 = cv2.imread(inputs[kdx]).shape[:2]
-        imgShape2 = cv2.imread(inputs[kdx+1]).shape[:2]
+        imgShape1 = img1.shape[:2]
+        imgShape2 = img2.shape[:2]
 
         matches = []
         for idx in tqdm(range(len(corners1))):
@@ -114,11 +119,6 @@ if __name__ == "__main__":
             c2 = corners2[min_jdx]
             d2 = desc2[min_jdx]
 
-            if(d1.shape!=d2.shape):
-                print(kdx)
-                print(d1.shape)
-                print(corners1[idx])
-                print(desc1[idx])
             ssd = np.linalg.norm(d1-d2)
 
             if ssd<SSD_THRESH:
@@ -128,7 +128,6 @@ if __name__ == "__main__":
 
         if SHOW_PATCH:
             rand_index = random.randint(0,len(matches)-1)
-            print(rand_index)
             visualize_patch(corners1[matches[rand_index][0]],inputs[kdx])
             visualize_patch(corners2[matches[rand_index][1]],inputs[kdx+1])
             cv2.waitKey(0)
@@ -137,11 +136,16 @@ if __name__ == "__main__":
         print("Number of corners in "+inputs[kdx]+" : "+str(len(corners1)))
         print("Number of corners in "+inputs[kdx+1]+" : "+str(len(corners2)))
         print("Number of matches found : "+str(len(matches))+"\n")
-        
 
+        """
+        src_pts = np.float32([ corners1[matches[idx][0]] for idx in range(len(matches)) ]).reshape(-1,1,2)
+        dst_pts = np.float32([ corners2[matches[idx][1]] for idx in range(len(matches)) ]).reshape(-1,1,2)
 
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+        matchesMask = mask.ravel().tolist()
+        img2_warped = cv2.warpPerspective(img1, M, (imgShape1[1] + imgShape2[1], imgShape2[0]))
 
+        cv2.imshow("img2_wraped",img2_warped)
+        cv2.waitKey(0)
+        """
 
-
-
-    

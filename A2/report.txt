@@ -1,7 +1,15 @@
-You can set the flags of whether to view corners or randomly matched corners using the variables mentioned on the top
+You can set the flags of whether to plot corners and randomly matched corners using the global variables mentioned on the top
+You can also change the parameters of filtering to vary speed of processing based on different datasets.
 
 Q1.
 I implemented the hessian corner detector and took the hessian of the gaussian smoothened image using opencv derivative and
-gaussian kernel functions. I later coloured all the corners as yellow in the end.
+gaussian kernel functions. I later rendered a circle of yellow color on each of the detected corners
 
 Q2.
+I first detected corners in both the adjacent images. Now i iterated over corners of the first image and took the corner closest
+to this corner in the second image and calculated the ssd distance between patches of size 5 surrounding these two corners. If this 
+is less than some threshhold then I added this pair to matched set of tuples.
+
+Q3.
+
+

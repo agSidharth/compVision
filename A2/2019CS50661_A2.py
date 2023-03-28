@@ -8,7 +8,7 @@ import random
 
 SHOW_CORN = False            # show corners in part 1
 SHOW_PATCH = False          # show randomly selected mtched pair for each pair of images.
-CORN_THRESH = 0.20          # percentage of maximum to set the threshold for corner selection
+CORN_THRESH = 0.30          # percentage of maximum to set the threshold for corner selection
 SSD_THRESH = 2200           # max ssd distance to be considered as a match
 DESC_SIZE = 5               # window size for ssd calculation
 

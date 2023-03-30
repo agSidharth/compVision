@@ -15,8 +15,8 @@ class Calibrator:
         df = pd.read_csv(fileName)
         self.n = len(df.index)
 
-        threeD_cols = df.columns[1:4]
-        twoD_cols = df.columns[4:6]
+        threeD_cols = df.columns[0:3]
+        twoD_cols = df.columns[3:5]
         self.w = df[threeD_cols].to_numpy()
         self.p = df[twoD_cols].to_numpy()
 

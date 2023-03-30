@@ -27,8 +27,6 @@ def normalise(D):
     D_aux3 = D_aux2[..., None]
     D_shift = np.append(D_shift, D_aux3, axis=1)
     D_trans = np.matmul(D_scale, D_shift) 
-    print(D_shift)
-    print(scaler1)
     return D_norm,D_trans
 
 

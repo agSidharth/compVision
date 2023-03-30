@@ -1,4 +1,4 @@
 1. change the coord_data.csv
 2. correct the normalise() functionin main.py
 3. remove the normalise2() funciton in main.py
-4. 
+4. make proper good report 

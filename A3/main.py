@@ -6,7 +6,8 @@ import sys
 import scipy
 import math
 
-NORMALIZE = True
+NORMALIZE = False
+TEST = True
 
 class Calibrator:
     def __init__(self,fileName):
@@ -19,35 +20,13 @@ class Calibrator:
         self.w = df[threeD_cols].to_numpy()
         self.p = df[twoD_cols].to_numpy()
 
+        if TEST:
+            perm = np.random.permutation(range(self.n))
+            self.p_test = np.append(self.p[perm],np.ones((self.n,1)),axis=1)
+            self.w_test = np.append(self.w[perm],np.ones((self.n,1)),axis=1)
+
         self.calibrate()
 
-    """
-    def normalise2(self,D):
-        dim = D.shape[1]
-        n = D.shape[0]
-        
-        D_centre = [sum(x)/len(x) for x in zip(*D)]
-        D_centre = np.asarray(D_centre)
-        D0 = D - D_centre
-
-        avg_dist_D0 = 0
-        for i in range(n):
-            avg_dist_D0 = avg_dist_D0 + np.linalg.norm(D0[i,:])
-        avg_dist_D0 = avg_dist_D0/float(n)
-        scaler1 = np.sqrt(dim)/float(avg_dist_D0)
-        D_norm = scaler1*D0
-        D_norm = np.append(D_norm, np.ones((n,1)), axis=1)
-        D_scale = np.diag([*[scaler1 for i in range(0,dim)],1.0])
-        D_shift = np.eye(dim)
-        D_shift = np.append(D_shift, [[0]*dim], axis=0)
-        D_aux1 = -D_centre
-        D_aux2 = np.append(D_aux1, [1])
-        D_aux3 = D_aux2[..., None]
-        D_shift = np.append(D_shift, D_aux3, axis=1)
-        D_trans = np.matmul(D_scale, D_shift) 
-        return D_norm,D_trans
-    """
-    
     # see if this needs to be done or not...
     def normalise(self,D):
         dim = D.shape[1]
@@ -78,13 +57,12 @@ class Calibrator:
         
         _,_,V = np.linalg.svd(Q)
         M_temp = V[-1,:12].reshape((3,4))
-        M_temp = M_temp/M_temp[2,3]
         
-        return M_temp
+        return M_temp/M_temp[2,3]
 
 
-    def extract_params(self,M):
-        self.K,R =  scipy.linalg.rq(M[:,0:3]) 
+    def extract_params(self):
+        self.K,R =  scipy.linalg.rq(self.M[:,0:3]) 
         self.K = self.K/self.K[2,2]
         self.K = self.K*np.diag(np.sign(self.K))
 
@@ -115,17 +93,36 @@ class Calibrator:
             p_norm,p_trans = self.normalise(self.p)
             w_norm,w_trans = self.normalise(self.w)
             M_temp = self.DLT(p_norm,w_norm)
-            M = np.matmul(np.matmul(np.linalg.inv(p_trans),M_temp),w_trans)
+            self.M = np.matmul(np.matmul(np.linalg.inv(p_trans),M_temp),w_trans)
         else:
             self.p = np.append(self.p,np.ones((self.n,1)),axis = 1)
             self.w = np.append(self.w,np.ones((self.n,1)),axis = 1)
-            M = self.DLT(self.p,self.w)
-        self.extract_params(M)
+            self.M = self.DLT(self.p,self.w)
+        self.extract_params()
         self.printparams()
+    
+    def test(self):
+        pts = np.matmul(self.M,self.w_test.T).T
+        pts[:,0] = pts[:,0]/pts[:,2]
+        pts[:,1] = pts[:,1]/pts[:,2]
+        pts[:,2] = np.ones((self.n))
 
+        rmse = np.linalg.norm(pts-self.p_test)/np.sqrt(self.n)
+        print("The rmse error is : "+str(rmse))
+
+        plt.scatter(self.p_test[:,0],self.p_test[:,1],marker = 'x')
+        plt.scatter(pts[:,0],pts[:,1],marker = 'o')
+        plt.xlabel('X cord')
+        plt.ylabel('Y cord')
+        plt.title('Visualizing of performance of camera calibration')
+        plt.legend(['original','predicted'])
+        plt.savefig('output.png')
+        pass
+        
 
 if __name__=='__main__':
     ourCalib = Calibrator(sys.argv[1])
+    if TEST: ourCalib.test()
     
 
     

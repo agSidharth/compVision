@@ -1,3 +1,2 @@
-1. correct the normalise() function in main.py
-2. make proper good report 
+1. normalise() function
 3. 3d reconstruction.

@@ -1,12 +1,8 @@
 import numpy as np
-from PIL import Image
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 import scipy
-import math
-
-NORMALIZE = False
 
 class Calibrator:
     def __init__(self,fileName):
@@ -19,25 +15,6 @@ class Calibrator:
         threeD_cols = df.columns[0:3]
         twoD_cols = df.columns[3:5]
         return df[threeD_cols].to_numpy(), df[twoD_cols].to_numpy()
-
-    # see if this needs to be done or not...
-    def normalise(self,D):
-        dim = D.shape[1]
-
-        D_centre = []
-        for d in range(dim):
-            D_centre.append(sum(D[:,d])/len(D[:,d]))
-        
-        D0 = D - np.asarray(D_centre)
-        norm_vector = np.linalg.norm(D0,axis = 1)
-        scaler = np.sqrt(dim)/(np.sum(norm_vector)/self.n)
-
-        D_norm = np.append(D0*scaler,np.ones((self.n,1)),axis = 1)
-
-        # complete this function
-        D_trans = None
-
-        return D_norm,D_trans
 
     def DLT(self,d_norm,D_norm):
         Q = np.zeros((2*self.n,12))
@@ -98,17 +75,15 @@ class Calibrator:
 
     def calibrate(self):
 
-        if NORMALIZE:
-            p_norm,p_trans = self.normalise(self.p)
-            w_norm,w_trans = self.normalise(self.w)
-            M_temp = self.DLT(p_norm,w_norm)
-            self.M = np.matmul(np.matmul(np.linalg.inv(p_trans),M_temp),w_trans)
-        else:
-            self.p = np.append(self.p,np.ones((self.n,1)),axis = 1)
-            self.w = np.append(self.w,np.ones((self.n,1)),axis = 1)
-            self.M = self.DLT(self.p,self.w)
+        self.p = np.append(self.p,np.ones((self.n,1)),axis = 1)
+        self.w = np.append(self.w,np.ones((self.n,1)),axis = 1)
+        self.M = self.DLT(self.p,self.w)
+        
         self.extract_params()
         self.printparams()
+
+        np.save('cameraP.npy',self.M)
+        np.save('cameraK.npy',self.K)
     
     def test(self,fileName):
         self.w_test,self.p_test = self.retCordinates(fileName)
@@ -138,10 +113,3 @@ class Calibrator:
 if __name__=='__main__':
     ourCalib = Calibrator(sys.argv[1])
     if len(sys.argv)>2: ourCalib.test(sys.argv[2])
-    
-
-    
-
-
-
-

@@ -1,14 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import sys
-import scipy
 import cv2 as cv
 
 class ArModel:
-    def __init__(self,fileName,s = 1):
+    def __init__(self,fileName,imgName,s = 1):
         self.w,self.p = self.retCordinates(fileName)
-        self.img = cv.imread(fileName[:-3]+"jpeg")
+        self.img = cv.imread(imgName)
         self.n = self.w.shape[0]
         self.s = s
         self.cube = np.array([[2,2,0,1],[2+s,2,0,1],[2,2+s,0,1],[2+s,2+s,0,1],[2,2,s,1],[2+s,2,s,1],[2,2+s,s,1],[2+s,2+s,s,1]]).T
@@ -51,7 +49,7 @@ class ArModel:
         Rt[:,2] = np.cross(Rt[:,0].T,Rt[:,1].T).T
         factor = np.linalg.norm(Rt[:,0])/np.linalg.norm(Rt[:,2])
         Rt[:,2] = Rt[:,2]*factor
-        
+
         self.M = np.matmul(self.K,Rt)
 
         tempCube = np.matmul(self.M,self.cube)
@@ -67,5 +65,5 @@ class ArModel:
         cv.imwrite("cube.png",self.img)
 
 if __name__=='__main__':
-    if(len(sys.argv)==2): armodel = ArModel(sys.argv[1])
-    else : armodel = ArModel(sys.argv[1],int(sys.argv[2]))
+    if(len(sys.argv)==3): armodel = ArModel(sys.argv[1],sys.argv[2])
+    else : armodel = ArModel(sys.argv[1],sys.argv[2],int(sys.argv[3]))

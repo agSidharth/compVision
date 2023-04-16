@@ -1,16 +1,15 @@
 import numpy as np
 import os
-import torch, torchvision
+import torch
 from torch.utils.data import Dataset
-from torchvision.transforms import ToTensor
-import pandas as pd
-from PIL import Image
-import matplotlib.pyplot as plt
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from PIL import Image
 import sys
 import random
 import copy
+import matplotlib.pyplot as plt
+import torchvision.transforms as transforms
+
 
 # Testing on the test data
 def calAccuracy(model,dataloader):
@@ -31,7 +30,8 @@ def calAccuracy(model,dataloader):
         correct += (predicted==labels).sum().item()
         
     torch.set_grad_enabled(True)
-    finalAcc = (correct*100)/total
+    finalAcc = correct/total
+    finalAcc = finalAcc*100
     print("The accuracy of the model : "+str(finalAcc))
     return finalAcc
 
@@ -39,42 +39,46 @@ def calAccuracy(model,dataloader):
 def trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON):
     
     last_loss,max_valAcc = ((np.inf)/4),0
+    model = model.to(device)
     finalModel = copy.deepcopy(model)
     
     for epoch in range(EPOCHS):
         this_loss = 0.0
 
         for idx,data in enumerate(trainloader,0):
-            if(DEBUG and idx%1==0): print("Iteration : "+str(idx))
+            if(DEBUG and idx%10==0): print("Iteration : "+str(idx))
             inputs,labels = data
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+            inputs,labels = inputs.to(device),labels.to(device)
             
             optimizer.zero_grad()
             loss = loss_fn(model(inputs),labels)
             loss.backward()
             optimizer.step()
 
-            this_loss += loss
+            this_loss = this_loss + loss + 0.0
         
         this_loss = this_loss/len(trainloader)
-        if(abs(this_loss-last_loss)<EPSILON): break
+        if(abs(this_loss-last_loss)<EPSILON): 
+            print("Terminating early")
+            break
         last_loss = this_loss
         
         print("Epoch : "+str(epoch)+", Loss ==> "+str(last_loss))
         print("Validation ==>")
         
-        this_valAcc = calAccuracy(model,validloader,device)
+        this_valAcc = calAccuracy(model,validloader)
         
         # Save the model only if validation accuracy is greater than previous max
         if(this_valAcc>max_valAcc):
+            print("Better model trained")
             max_valAcc = this_valAcc
             finalModel = copy.deepcopy(model)
     
-    print("Training finished...Testing ==>")
-    testing_Acc = calAccuracy(model,testloader,device)
+    print("\n\nTraining finished...Testing ==>")
+    model = copy.deepcopy(finalModel)
+    testing_Acc = calAccuracy(model,testloader)
     
-    return finalModel,max_valAcc
+    return model,max_valAcc
 
 class ourDataset(Dataset):
     def __init__(self,dataDir):
@@ -109,6 +113,7 @@ class ourDataset(Dataset):
     
     def __getitem__(self,idx):
         thisImg = Image.open(self.images[idx])
+        if thisImg.mode=="L": thisImg = thisImg.convert('RGB')
         thisTransform = transforms.Compose([transforms.PILToTensor()])
         img_tensor = thisTransform(thisImg)/255
         
@@ -121,17 +126,21 @@ SEED = 661
 np.random.seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.manual_seed(SEED)
+random.seed(SEED)
 
 # Using various hyperparameters 
-EPOCHS = 4
+BATCH_SIZE = 64
+EPOCHS = 10
 EPSILON = 1e-3
+REGULARIZATION = True
+WEIGHT_DECAY = 0
 DEBUG = True 
 LR = 0.01
 MOMENTUM = 0.9
-BATCH_SIZE = 64
-REGULARIZATION = True
-WEIGHT_DECAY = 0
-if REGULARIZATION: WEIGHT_DECAY = 1e-5
+
+if REGULARIZATION: 
+    WEIGHT_DECAY = 1e-5
+    print("Regularization is being used")
 
 # Take cuda if it is available
 thisDevice = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -159,19 +168,25 @@ plt.show()
 """
 
 model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', pretrained=True)
+for param in model.parameters():
+    param.requires_grad = False
+
 model.classifier[6] = torch.nn.Linear(4096,len(labelsDict))
-model = model.to(device)
 
+for name,param in model.named_parameters():
+    if param.requires_grad==True:
+        print("\t",name)
 
-loss_fn = torch.nn.CrossEntropyLoss()
+loss_fn,model = torch.nn.CrossEntropyLoss(),model.to(device)
 optimizer = torch.optim.SGD(model.parameters(),lr = LR,momentum = MOMENTUM,weight_decay=WEIGHT_DECAY)
 
-finalModel,testAcccu = trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON)
+model,testAcccu = trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON)
 
-torch.save(finalModel.state_dict(),"output.pth")
+print("\n\n")
+torch.save(model.state_dict(),"output.pth")
 print("Final Training Accuracy ==>")
-calAccuracy(finalModel,trainloader)
+calAccuracy(model,trainloader)
 print("Final Validation Accuracy ==>")
-calAccuracy(finalModel,validloader)
+calAccuracy(model,validloader)
 print("Final Testing Accuracy ==>")
-calAccuracy(finalModel,testloader)
+temp = calAccuracy(model,testloader)

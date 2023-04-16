@@ -38,6 +38,9 @@ testing on the test set).
 while training and show improvement.
 
 
-NOTES:
+TBD:
 a. hyperparameters finding
-b. regularization: l1,l2,dropout,normalization, early stopping
+b. regularization: l1,dropout,normalization
+
+DONE:
+l2, early stopping 

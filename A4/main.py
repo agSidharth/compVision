@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 def calAccuracy(model,dataloader):
 
     # no need to track the forward computation
+    model.eval()
     torch.set_grad_enabled(False)
     correct,total = 0,0
     tempAxis = 1
@@ -40,6 +41,7 @@ def trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON):
     
     last_loss,max_valAcc = ((np.inf)/4),0
     model = model.to(device)
+    model.train()
     finalModel = copy.deepcopy(model)
     
     for epoch in range(EPOCHS):

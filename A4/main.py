@@ -134,7 +134,7 @@ random.seed(SEED)
 
 # Using various hyperparameters 
 BATCH_SIZE = 64
-EPOCHS = 5
+EPOCHS = 20
 EPSILON = 1e-3
 REGULARIZATION = True
 WEIGHT_DECAY = 0

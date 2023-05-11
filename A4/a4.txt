@@ -40,7 +40,7 @@ while training and show improvement.
 
 TBD:
 a. hyperparameters finding
-b. regularization: l1,dropout,normalization
+b. regularization: l1,dropout
 
 DONE:
-l2, early stopping 
+l2, early stopping, normalization

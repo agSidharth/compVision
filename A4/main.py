@@ -39,6 +39,7 @@ def calAccuracy(model,dataloader):
 # training model function
 def trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON):
     
+    loss_list = []
     last_loss,max_valAcc = ((np.inf)/4),0
     model = model.to(device)
     model.train()
@@ -60,6 +61,7 @@ def trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON):
             this_loss = this_loss + loss + 0.0
         
         this_loss = this_loss/len(trainloader)
+        loss_list.append(this_loss.cpu().detach().numpy())
         if(abs(this_loss-last_loss)<EPSILON): 
             print("Terminating early")
             break
@@ -80,7 +82,7 @@ def trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON):
     model = copy.deepcopy(finalModel)
     testing_Acc = calAccuracy(model,testloader)
     
-    return model,max_valAcc
+    return model,max_valAcc,loss_list
 
 class ourDataset(Dataset):
     def __init__(self,dataDir):
@@ -132,12 +134,12 @@ random.seed(SEED)
 
 # Using various hyperparameters 
 BATCH_SIZE = 64
-EPOCHS = 10
+EPOCHS = 5
 EPSILON = 1e-3
 REGULARIZATION = True
 WEIGHT_DECAY = 0
 DEBUG = True 
-LR = 0.01
+LR = 0.001
 MOMENTUM = 0.9
 
 if REGULARIZATION: 
@@ -182,7 +184,7 @@ for name,param in model.named_parameters():
 loss_fn,model = torch.nn.CrossEntropyLoss(),model.to(device)
 optimizer = torch.optim.SGD(model.parameters(),lr = LR,momentum = MOMENTUM,weight_decay=WEIGHT_DECAY)
 
-model,testAcccu = trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON)
+model,testAcccu,loss_list = trainModel(model,loss_fn,optimizer,EPOCHS,EPSILON)
 
 print("\n\n")
 torch.save(model.state_dict(),"output.pth")
@@ -192,3 +194,8 @@ print("Final Validation Accuracy ==>")
 calAccuracy(model,validloader)
 print("Final Testing Accuracy ==>")
 temp = calAccuracy(model,testloader)
+
+plt.plot(loss_list)
+plt.xlabel("Iterations")
+plt.ylabel("Loss")
+plt.savefig("Convergence.png")
